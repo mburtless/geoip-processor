@@ -2,9 +2,11 @@ package server
 
 import (
 	"io"
+	"net"
 
 	v31 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	pb "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
+	"github.com/oschwald/geoip2-golang"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -16,15 +18,21 @@ var (
 	defaultCCRespHeader = "x-country-code"
 )
 
+type geoIP2DB interface {
+	Country(ipAddress net.IP) (*geoip2.Country, error)
+}
+
 type Server struct {
 	logger       *zap.Logger
+	geoIPDB      geoIP2DB
 	ipReqHeader  string
 	ccRespHeader string
 }
 
-func NewServer(l *zap.Logger, opts ...func(s *Server)) *Server {
+func NewServer(l *zap.Logger, db geoIP2DB, opts ...func(s *Server)) *Server {
 	svr := &Server{
 		logger:       l,
+		geoIPDB:      db,
 		ipReqHeader:  defaultIPReqHeader,
 		ccRespHeader: defaultCCRespHeader,
 	}
@@ -90,14 +98,14 @@ func (s *Server) Process(srv pb.ExternalProcessor_ProcessServer) error {
 
 func (s *Server) handleReqHeaders(h *pb.ProcessingRequest_RequestHeaders) *pb.ProcessingResponse {
 	ip := s.extractIPFromReqHeaders(h.RequestHeaders.GetHeaders().GetHeaders())
-
-	// if ip was extracted add x-country-code header to resp
 	if ip != "" {
-		// TODO: maxmind magic
-		countryCode := "US"
-		if countryCode != "" {
-			return s.countryCodeResp(countryCode)
+		ipAddr := net.ParseIP(ip)
+		record, err := s.geoIPDB.Country(ipAddr)
+		if err != nil {
+			s.logger.Error("unable to find country for ip", zap.String("ip", ip), zap.Error(err))
+			return &pb.ProcessingResponse{}
 		}
+		return s.countryCodeResp(record.Country.IsoCode)
 	}
 
 	return &pb.ProcessingResponse{}
