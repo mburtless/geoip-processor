@@ -92,6 +92,7 @@ func getConfig() *config {
 		cfg.maxConStreams = 1000
 	}
 
-	// TODO: allow config of which http header to extract IP from (XFF, x-real-ip, etc)
+	// TODO: allow config of which http header to extract req IP from (XFF, x-real-ip, etc)
+	// TODO: allow config of which http header to inject country code in
 	return &cfg
 }

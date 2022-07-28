@@ -11,6 +11,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+var (
+	ipReqHeader  = "x-forwarded-for"
+	ccRespHeader = "x-country-code"
+)
+
 type Server struct {
 	logger *zap.Logger
 }
@@ -48,7 +53,7 @@ func (s *Server) Process(srv pb.ExternalProcessor_ProcessServer) error {
 			s.logger.Debug("pb.ProcessingRequest_RequestHeaders")
 			r := req.Request
 			h := r.(*pb.ProcessingRequest_RequestHeaders)
-			resp = s.handleRequestHeaders(h)
+			resp = s.handleReqHeaders(h)
 			break
 		default:
 			s.logger.Error("unknown request type", zap.Any("req", v))
@@ -59,27 +64,40 @@ func (s *Server) Process(srv pb.ExternalProcessor_ProcessServer) error {
 	}
 }
 
-func (s *Server) handleRequestHeaders(h *pb.ProcessingRequest_RequestHeaders) *pb.ProcessingResponse {
-	// extract ip from headers
-	for _, v := range h.RequestHeaders.GetHeaders().GetHeaders() {
-		if v.GetKey() == "x-forwarded-for" {
-			s.logger.Debug("XFF header found", zap.String("xff", v.GetValue()))
+func (s *Server) handleReqHeaders(h *pb.ProcessingRequest_RequestHeaders) *pb.ProcessingResponse {
+	ip := s.extractIPFromReqHeaders(h.RequestHeaders.GetHeaders().GetHeaders())
+
+	// if ip was extracted add x-country-code header to resp
+	if ip != "" {
+		// TODO: maxmind magic
+		countryCode := "US"
+		if countryCode != "" {
+			return countryCodeResp(countryCode)
 		}
-	}
-	// TODO: maxmind magic
-	countryCode := "US"
-	// add x-country-code header to resp
-	if countryCode != "" {
-		return countryCodeResp(countryCode)
 	}
 
 	return &pb.ProcessingResponse{}
 }
 
+func (s *Server) extractIPFromReqHeaders(h []*v31.HeaderValue) string {
+	ip := ""
+	for _, v := range h {
+		if v.GetKey() == ipReqHeader {
+			s.logger.Debug("XFF header found", zap.String("xff", v.GetValue()))
+			ip = v.GetValue()
+		}
+	}
+	return ip
+}
+
 func countryCodeResp(countryCode string) *pb.ProcessingResponse {
-	opt := &v31.HeaderValueOption{
+	if countryCode == "" {
+		return &pb.ProcessingResponse{}
+	}
+
+	h := &v31.HeaderValueOption{
 		Header: &v31.HeaderValue{
-			Key:   "x-country-code",
+			Key:   ccRespHeader,
 			Value: countryCode,
 		},
 	}
@@ -89,7 +107,7 @@ func countryCodeResp(countryCode string) *pb.ProcessingResponse {
 			RequestHeaders: &pb.HeadersResponse{
 				Response: &pb.CommonResponse{
 					HeaderMutation: &pb.HeaderMutation{
-						SetHeaders: []*v31.HeaderValueOption{opt},
+						SetHeaders: []*v31.HeaderValueOption{h},
 					},
 				},
 			},
