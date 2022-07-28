@@ -12,16 +12,40 @@ import (
 )
 
 var (
-	ipReqHeader  = "x-forwarded-for"
-	ccRespHeader = "x-country-code"
+	defaultIPReqHeader  = "x-forwarded-for"
+	defaultCCRespHeader = "x-country-code"
 )
 
 type Server struct {
-	logger *zap.Logger
+	logger       *zap.Logger
+	ipReqHeader  string
+	ccRespHeader string
 }
 
-func NewServer(l *zap.Logger) *Server {
-	return &Server{logger: l}
+func NewServer(l *zap.Logger, opts ...func(s *Server)) *Server {
+	svr := &Server{
+		logger:       l,
+		ipReqHeader:  defaultIPReqHeader,
+		ccRespHeader: defaultCCRespHeader,
+	}
+	for _, opt := range opts {
+		opt(svr)
+	}
+	return svr
+}
+
+// WithIPReqHeader configures the header that IP of request is extracted from
+func WithIPReqHeader(h string) func(s *Server) {
+	return func(s *Server) {
+		s.ipReqHeader = h
+	}
+}
+
+// WithCCRespHeader configures the header that country code of request is injected in
+func WithCCRespHeader(h string) func(s *Server) {
+	return func(s *Server) {
+		s.ccRespHeader = h
+	}
 }
 
 // RegisterServer registers server as an ExternalProcessorServer on provided GRPC server
@@ -72,7 +96,7 @@ func (s *Server) handleReqHeaders(h *pb.ProcessingRequest_RequestHeaders) *pb.Pr
 		// TODO: maxmind magic
 		countryCode := "US"
 		if countryCode != "" {
-			return countryCodeResp(countryCode)
+			return s.countryCodeResp(countryCode)
 		}
 	}
 
@@ -82,22 +106,22 @@ func (s *Server) handleReqHeaders(h *pb.ProcessingRequest_RequestHeaders) *pb.Pr
 func (s *Server) extractIPFromReqHeaders(h []*v31.HeaderValue) string {
 	ip := ""
 	for _, v := range h {
-		if v.GetKey() == ipReqHeader {
-			s.logger.Debug("XFF header found", zap.String("xff", v.GetValue()))
+		if v.GetKey() == s.ipReqHeader {
+			s.logger.Debug("ip header found", zap.String(s.ipReqHeader, v.GetValue()))
 			ip = v.GetValue()
 		}
 	}
 	return ip
 }
 
-func countryCodeResp(countryCode string) *pb.ProcessingResponse {
+func (s *Server) countryCodeResp(countryCode string) *pb.ProcessingResponse {
 	if countryCode == "" {
 		return &pb.ProcessingResponse{}
 	}
 
 	h := &v31.HeaderValueOption{
 		Header: &v31.HeaderValue{
-			Key:   ccRespHeader,
+			Key:   s.ccRespHeader,
 			Value: countryCode,
 		},
 	}
