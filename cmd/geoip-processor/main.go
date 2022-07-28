@@ -91,5 +91,7 @@ func getConfig() *config {
 	if err != nil {
 		cfg.maxConStreams = 1000
 	}
+
+	// TODO: allow config of which http header to extract IP from (XFF, x-real-ip, etc)
 	return &cfg
 }
