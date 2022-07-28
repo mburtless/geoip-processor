@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"errors"
+	"net"
 	"os"
 	"os/signal"
 	"strconv"
 
+	"github.com/mburtless/geoip-processor/internal/server"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
 type config struct {
@@ -41,12 +44,36 @@ func main() {
 
 	err := run(ctx, cfg)
 	if err != nil && !errors.Is(err, context.Canceled) {
-		cfg.logger.Fatal("err ", zap.Error(err))
+		cfg.logger.Fatal("error running server", zap.Error(err))
 	}
 }
 
 func run(ctx context.Context, cfg *config) error {
-	return errors.New("NYI")
+	lis, err := net.Listen("tcp", cfg.addr)
+	if err != nil {
+		return err
+	}
+
+	opts := []grpc.ServerOption{grpc.MaxConcurrentStreams(uint32(cfg.maxConStreams))}
+	s := grpc.NewServer(opts...)
+
+	srv := server.NewServer(cfg.logger)
+	srv.RegisterServer(s)
+
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- s.Serve(lis)
+	}()
+
+	cfg.logger.Info("starting server", zap.String("address", cfg.addr))
+	select {
+	case err := <-errChan:
+		return err
+	case <-ctx.Done():
+		cfg.logger.Info("stopping server")
+		s.GracefulStop()
+		return ctx.Err()
+	}
 }
 
 func getConfig() *config {
