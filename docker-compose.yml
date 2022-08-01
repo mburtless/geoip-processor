@@ -1,0 +1,22 @@
+version: "3.9"
+services:
+  proxy:
+    image: envoyproxy/envoy-dev:latest
+    command: ["-c", "/etc/envoy.yaml"]
+    volumes:
+      - ./envoy.yaml:/etc/envoy.yaml
+    ports:
+      - 10000:10000 # httpbin listener
+      - 9901:9901 # admin server
+  processor:
+    build:
+      context: ./
+    ports:
+      - 8000:8000 # grpc server
+    environment:
+      - ADDR=processor:8000
+      - GEOIP_DB=/etc/GeoLite2-Country.mmdb
+    volumes:
+      - ./GeoLite2-Country.mmdb:/etc/GeoLite2-Country.mmdb
+  httpbin:
+    image: kennethreitz/httpbin
