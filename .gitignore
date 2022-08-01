@@ -16,3 +16,6 @@
 
 # goland
 .idea
+
+# maxmind dbs
+*.mmdb
