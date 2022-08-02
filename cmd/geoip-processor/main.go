@@ -23,27 +23,13 @@ type config struct {
 }
 
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
 	cfg := getConfig()
 
 	// init logger
 	cfg.logger, _ = zap.NewDevelopment()
-
-	// run
-	ctx, cancel := context.WithCancel(context.Background())
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	defer func() {
-		signal.Stop(c)
-		cancel()
-	}()
-
-	go func() {
-		select {
-		case <-c:
-			cancel()
-		case <-ctx.Done():
-		}
-	}()
 
 	err := run(ctx, cfg)
 	if err != nil && !errors.Is(err, context.Canceled) {
