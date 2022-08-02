@@ -9,11 +9,16 @@ filter to inspect incoming requests and add GeoIP data (ie `X-Country-Code`) for
 * Allow customization of geoip data that is resolved.  Currently, limited to Country Code of source IP.
 
 ## Testing
+In order to test this, you must have the MaxMind [GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/) or 
+[GeoIP2](http://www.maxmind.com/en/geolocation_landing) database present locally.
+
 The external processor can either be tested directly via `grpcurl` or by running Envoy with the included configuration. 
 In either case, including the `X-Forwarded-For` header in the request should cause the processor to modify the request 
 headers to include an `X-Country-Code` header with a value of the country code that the IP is registered in.
 
 ```shell
+$ export GEOIP_DB=<Path to MaxMind mmdb>
+
 # bring up external processor service, Envoy and httpbin
 $ docker-compose up -d
 
