@@ -2,7 +2,7 @@ version: "3.9"
 services:
   proxy:
     image: envoyproxy/envoy-dev:latest
-    command: ["-c", "/etc/envoy.yaml"]
+    command: ["--log-level",  "debug", "-c", "/etc/envoy.yaml"]
     volumes:
       - ./envoy.yaml:/etc/envoy.yaml
     ports:

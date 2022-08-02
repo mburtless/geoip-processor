@@ -27,6 +27,20 @@ static_resources:
                         - match: { prefix: "/" }
                           route: { cluster: httpbin }
                 http_filters:
+                  - name: envoy.filters.http.ext_proc
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor
+                      failure_mode_allow: false
+                      processing_mode:
+                        request_header_mode: "SEND"
+                        response_header_mode: "SKIP"
+                        request_body_mode: "NONE"
+                        response_body_mode: "NONE"
+                        request_trailer_mode: "SKIP"
+                        response_trailer_mode: "SKIP"
+                      grpc_service:
+                        envoy_grpc:
+                          cluster_name: geopip_proc
                   - name: envoy.filters.http.router
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
@@ -44,3 +58,24 @@ static_resources:
                     socket_address:
                       address: httpbin
                       port_value: 80
+    - name: geopip_proc
+      connect_timeout: 0.25s
+      type: LOGICAL_DNS
+      lb_policy: ROUND_ROBIN
+      typed_extension_protocol_options:
+        envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+          "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+          explicit_http_config:
+            http2_protocol_options:
+              connection_keepalive:
+                interval: 30s
+                timeout: 5s
+      load_assignment:
+        cluster_name: geopip_proc
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: processor
+                      port_value: 8000

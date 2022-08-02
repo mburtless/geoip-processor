@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 )
 
@@ -59,6 +60,7 @@ func WithCCRespHeader(h string) func(s *Server) {
 // RegisterServer registers server as an ExternalProcessorServer on provided GRPC server
 func (s *Server) RegisterServer(srv *grpc.Server) {
 	pb.RegisterExternalProcessorServer(srv, s)
+	reflection.Register(srv)
 }
 
 func (s *Server) Process(srv pb.ExternalProcessor_ProcessServer) error {
