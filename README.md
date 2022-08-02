@@ -1,5 +1,7 @@
 # geoip-processor
-External Processor for Envoy that Adds GeoIP Data to HTTP Traffic
+External Processor for Envoy that Adds GeoIP Data to HTTP Traffic.  This service can be connected to Envoy via the 
+[External Processing](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/ext_proc_filter) HTTP 
+filter to inspect incoming requests and add GeoIP data (ie `X-Country-Code`) for use by upstream services.
 
 ## Testing
 The external processor can either be tested directly via `grpcurl` or by running Envoy with the included configuration. 
@@ -8,10 +10,26 @@ headers to include an `X-Country-Code` header with a value of the country code t
 
 ```shell
 # bring up external processor service, Envoy and httpbin
-docker-compose up -d
+$ docker-compose up -d
 
 # test the external processor directly
-grpcurl -plaintext -d '{"async_mode": false, "request_headers": {"headers": {"headers": [{"key": "x-forwarded-for", "value": "8.8.8.8"}]}}}' 127.0.0.1:8000 envoy.service.ext_proc.v3.ExternalProcessor/Process
+$ grpcurl -plaintext -d '{"async_mode": false, "request_headers": {"headers": {"headers": [{"key": "x-forwarded-for", "value": "8.8.8.8"}]}}}' 127.0.0.1:8000 envoy.service.ext_proc.v3.ExternalProcessor/Process
+{
+  "requestHeaders": {
+    "response": {
+      "headerMutation": {
+        "setHeaders": [
+          {
+            "header": {
+              "key": "x-country-code",
+              "value": "US"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
 
 # test via httpbin. Spoof IP by manually setting XFF header and note x-country-code in response
 # US IP
