@@ -67,7 +67,7 @@ $ curl -H "X-Forwarded-For: 3.6.203.25" 127.0.0.1:10000/headers
 }
 
 # Australian IP
-curl -H "X-Forwarded-For: 13.210.4.1" 127.0.0.1:10000/headers
+$ curl -H "X-Forwarded-For: 13.210.4.1" 127.0.0.1:10000/headers
 {
   "headers": {
     "Accept": "*/*",
