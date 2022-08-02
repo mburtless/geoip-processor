@@ -17,6 +17,6 @@ services:
       - ADDR=processor:8000
       - GEOIP_DB=/etc/GeoLite2-Country.mmdb
     volumes:
-      - ./GeoLite2-Country.mmdb:/etc/GeoLite2-Country.mmdb
+      - ${GEOIP_DB:-./GeoLite2-Country.mmdb}:/etc/GeoLite2-Country.mmdb
   httpbin:
     image: kennethreitz/httpbin
