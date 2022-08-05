@@ -3,6 +3,14 @@ External Processor for Envoy that Adds GeoIP Data to HTTP Traffic.  This service
 [External Processing](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/ext_proc_filter) HTTP 
 filter to inspect incoming requests and add GeoIP data (ie `X-Country-Code`) for use by upstream services.
 
+# Flow
+![GeoIP Flow Diagram](./assets/geoip-flow.svg)
+
+1. Incoming request from downstream is intercepted by External Processing filter.
+2. GRPC bidirectional stream opened to GeoIP external processor service.  External processor uses Maxmind reader to lookup geoip data of request IP and responds with header mutation that appends geoip data to request headers.
+3. Envoy continues to process request down filter chain.
+4. Router filter routes request to correct upstream.
+
 ## TODO
 * Allow customization of request header that source IP is extracted from.  Currently, limited to first IP in XFF header.
 * Allow customization of request header geoip data is injected into.  Currently, limited to `x-country-code`.
@@ -78,3 +86,4 @@ $ curl -H "X-Forwarded-For: 13.210.4.1" 127.0.0.1:10000/headers
   }
 }
 ```
+

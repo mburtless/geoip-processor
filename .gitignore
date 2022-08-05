@@ -19,3 +19,6 @@
 
 # maxmind dbs
 *.mmdb
+
+# dumb mac stuff
+.DS_Store
